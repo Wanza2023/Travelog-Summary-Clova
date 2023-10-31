@@ -1,10 +1,8 @@
-from typing import Optional
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-import json
-import httpx
-from bs4 import BeautifulSoup
+
+from schemas import Document, Summary
+from utils import cleanhtml, clova_api
 
 app = FastAPI()
 
@@ -16,45 +14,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-client_id = ''
-client_secret = ''
-
-class Document(BaseModel):
-    title: Optional[str] = None
-    content: str
-
-class Summary(BaseModel):
-    summary: str
-
-def clova_api(title, content):
-    r = httpx.post(
-        'https://naveropenapi.apigw.ntruss.com/text-summary/v1/summarize',
-        json ={
-            "document": {
-                "title": title,
-                "content": content,
-            },
-            "option": {
-                "language": "ko",
-                "model": "general",
-                "tone": 0,
-                "summaryCount": 3
-            }
-        },
-        headers = {
-            'Content-Type': 'application/json;UTF-8',
-            'X-NCP-APIGW-API-KEY-ID': client_id,
-            'X-NCP-APIGW-API-KEY': client_secret
-        }
-    )
-
-    return json.loads(r.text)
-
 @app.post("/summary", response_model=Summary)
 async def get_summary(document:Document):
     title = document.title
-    content = BeautifulSoup(document.content, 'lxml').text
+    content = cleanhtml(document.content)
 
-    result = clova_api(title,content)
+    result = clova_api(title, content)
 
     return result
